@@ -21,7 +21,25 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+function LoginScreen({ onSignIn }) {
+  return (
+    <div className="login-screen">
+      <div className="login-card">
+        <span className="eyebrow">Personal finance, kept honest</span>
+        <h1>FinanceFlow</h1>
+        <p>Sign in to track your income and expenses, privately.</p>
+        <button className="google-btn" onClick={onSignIn}>
+          <span className="google-icon">G</span>
+          Continue with Google
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
+  const [session, setSession] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState('')
@@ -29,8 +47,33 @@ export default function App() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    fetchTransactions()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setAuthLoading(false)
+    })
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession)
+    })
+
+    return () => listener.subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (session) fetchTransactions()
+  }, [session])
+
+  async function signInWithGoogle() {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    })
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut()
+    setTransactions([])
+  }
 
   async function fetchTransactions() {
     setLoading(true)
@@ -98,11 +141,27 @@ export default function App() {
   const balance = totalIncome - totalExpense
   const isPositive = balance >= 0
 
+  if (authLoading) {
+    return <div className="auth-loading">Loading…</div>
+  }
+
+  if (!session) {
+    return <LoginScreen onSignIn={signInWithGoogle} />
+  }
+
   return (
     <div className="page">
       <header className="page-header">
-        <span className="eyebrow">Personal finance, kept honest</span>
-        <h1>FinanceFlow</h1>
+        <div>
+          <span className="eyebrow">Personal finance, kept honest</span>
+          <h1>FinanceFlow</h1>
+        </div>
+        <div className="user-pill">
+          <span>{session.user.email}</span>
+          <button type="button" onClick={signOut}>
+            Sign out
+          </button>
+        </div>
       </header>
 
       <section className={`balance-card ${isPositive ? 'is-positive' : 'is-negative'}`}>
