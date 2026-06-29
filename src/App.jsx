@@ -43,7 +43,7 @@ const DEFAULT_CATEGORIES = [
 ]
 
 const EMPTY_FORM = {
-  type: 'expense',
+  type: 'income',
   amount: '',
   category: '',
   note: '',
@@ -360,12 +360,12 @@ export default function App() {
   }
 
   async function fetchCategories() {
-    const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true })
+    const { data, error } = await supabase.from('categories').select('*').order('id', { ascending: true })
     if (error) return
 
     if (data.length === 0) {
       await supabase.from('categories').insert(DEFAULT_CATEGORIES)
-      const { data: seeded } = await supabase.from('categories').select('*').order('name', { ascending: true })
+      const { data: seeded } = await supabase.from('categories').select('*').order('id', { ascending: true })
       setCategories(seeded || [])
     } else {
       setCategories(data)
@@ -924,11 +924,11 @@ export default function App() {
           </div>
           <form className="entry-form" onSubmit={handleSubmit}>
             <div className="type-toggle">
-              <button type="button" className={form.type === 'expense' ? 'active expense' : ''} onClick={() => selectType('expense')}>
-                Expense
-              </button>
               <button type="button" className={form.type === 'income' ? 'active income' : ''} onClick={() => selectType('income')}>
                 Income
+              </button>
+              <button type="button" className={form.type === 'expense' ? 'active expense' : ''} onClick={() => selectType('expense')}>
+                Expense
               </button>
             </div>
 
