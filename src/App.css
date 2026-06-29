@@ -507,3 +507,212 @@ input:focus {
     grid-area: delete;
   }
 }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.tabs button {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.tabs button.active {
+  background: var(--forest);
+  border-color: var(--forest);
+  color: #fff;
+}
+
+/* Card header row (title + action button) */
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.card-header-row h2 {
+  margin: 0;
+}
+
+.print-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--forest);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.print-btn:hover {
+  background: var(--gold-soft);
+}
+
+/* Checkbox row */
+.checkbox-row {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.checkbox-row input {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  accent-color: var(--forest);
+}
+
+/* Category breakdown bars */
+.breakdown-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.breakdown-bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.breakdown-bar {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.breakdown-bar.income {
+  background: var(--forest-soft);
+}
+
+.breakdown-bar.expense {
+  background: var(--brick);
+}
+
+/* Budgets */
+.budget-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.budget-row-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.budget-category {
+  font-weight: 600;
+  font-size: 14px;
+  flex: 1;
+}
+
+.over-badge {
+  background: var(--brick-soft);
+  color: var(--brick);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.budget-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.budget-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--forest-soft);
+  transition: width 0.2s ease;
+}
+
+.budget-fill.over {
+  background: var(--brick);
+}
+
+.budget-figures {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-top: 6px;
+}
+
+/* Print / PDF export */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .page {
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .balance-card {
+    background: #fff !important;
+    color: var(--ink) !important;
+    border: 1px solid var(--line);
+  }
+
+  .balance-card::after {
+    display: none;
+  }
+
+  .balance-amount,
+  .currency,
+  .balance-label,
+  .split-label,
+  .split-value {
+    color: var(--ink) !important;
+  }
+
+  .card,
+  .balance-card {
+    box-shadow: none;
+    page-break-inside: avoid;
+  }
+}
