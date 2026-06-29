@@ -1043,3 +1043,124 @@ select:focus {
   font-weight: 700;
   font-family: 'Inter', sans-serif;
 }
+
+/* History filters */
+.history-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.history-filters > input {
+  width: 100%;
+}
+
+.filter-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.type-filter-pills {
+  display: flex;
+  gap: 6px;
+}
+
+.type-filter-pills button {
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink-muted);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.type-filter-pills button.active {
+  background: var(--forest);
+  border-color: var(--forest);
+  color: #fff;
+}
+
+.filter-row select {
+  flex: 1;
+  min-width: 140px;
+}
+
+.entry-count {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.history-group-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 18px 0 8px;
+}
+
+.history-group-label:first-of-type {
+  margin-top: 0;
+}
+
+.history-group-label.income {
+  color: var(--forest-soft);
+}
+
+.history-group-label.expense {
+  color: var(--brick);
+}
+
+/* Edit button on transaction rows */
+.transaction-list.with-edit .transaction-row {
+  grid-template-columns: 10px 1fr auto auto 22px 22px;
+}
+
+.edit-btn {
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+.edit-btn:hover {
+  color: var(--forest-soft);
+}
+
+@media (max-width: 480px) {
+  .transaction-list.with-edit .transaction-row {
+    grid-template-columns: 10px 1fr 22px 22px;
+    grid-template-areas:
+      'dot main edit delete'
+      'dot date date amount';
+  }
+
+  .transaction-list.with-edit .edit-btn {
+    grid-area: edit;
+  }
+}
+
+/* Category manager inside modal */
+.category-section {
+  margin-bottom: 22px;
+}
+
+.category-section:last-child {
+  margin-bottom: 0;
+}
+
+.category-section h2 {
+  font-size: 16px;
+}
+
+.modal-form {
+  margin-top: 14px;
+  margin-bottom: 4px;
+}
