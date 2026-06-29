@@ -53,7 +53,8 @@ const EMPTY_FORM = {
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
-  { id: 'categories', label: 'Categories' },
+  { id: 'add', label: '+ Add' },
+  { id: 'history', label: 'History' },
   { id: 'recurring', label: 'Recurring' },
 ]
 
@@ -65,6 +66,18 @@ function formatMoney(value) {
 function formatDate(dateStr) {
   const d = new Date(dateStr)
   return d.toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function formatAmountInput(raw) {
+  if (raw === undefined || raw === null || raw === '') return ''
+  const [intPart, decPart] = String(raw).split('.')
+  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt
+}
+
+function sanitizeAmountInput(value) {
+  const cleaned = value.replace(/,/g, '')
+  return /^\d*\.?\d*$/.test(cleaned) ? cleaned : null
 }
 
 function daysBetweenInclusive(startStr, endStr) {
@@ -172,7 +185,7 @@ function LoginScreen({ onSignIn, theme, onToggleTheme }) {
   )
 }
 
-function TransactionRow({ t, onDelete }) {
+function TransactionRow({ t, onDelete, onEdit }) {
   return (
     <li className="transaction-row">
       <span className={`type-dot ${t.type}`} />
@@ -184,6 +197,11 @@ function TransactionRow({ t, onDelete }) {
       <span className={`transaction-amount ${t.type}`}>
         {t.type === 'income' ? '+' : '−'} Rs. {formatMoney(t.amount)}
       </span>
+      {onEdit && (
+        <button type="button" className="edit-btn" onClick={() => onEdit(t)} aria-label="Edit entry">
+          ✎
+        </button>
+      )}
       <button type="button" className="delete-btn" onClick={() => onDelete(t.id)} aria-label="Delete entry">
         ×
       </button>
@@ -193,7 +211,7 @@ function TransactionRow({ t, onDelete }) {
 
 function CategoryManager({ title, type, categories, value, onValueChange, onAdd, onDelete }) {
   return (
-    <section className="card">
+    <section className="category-section">
       <h2>{title}</h2>
       <form
         className="category-add-row"
@@ -235,6 +253,7 @@ export default function App() {
 
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [activeTab, setActiveTab] = useState('dashboard')
 
   const [transactions, setTransactions] = useState([])
@@ -247,6 +266,7 @@ export default function App() {
   const [newIncomeCategory, setNewIncomeCategory] = useState('')
   const [newExpenseCategory, setNewExpenseCategory] = useState('')
   const [categoryError, setCategoryError] = useState('')
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
 
   const [budgets, setBudgets] = useState([])
   const [showBudgetModal, setShowBudgetModal] = useState(false)
@@ -259,6 +279,15 @@ export default function App() {
   const [cycleForm, setCycleForm] = useState({ start: '', end: '' })
   const [cycleError, setCycleError] = useState('')
   const [savingCycle, setSavingCycle] = useState(false)
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterType, setFilterType] = useState('all')
+  const [filterCategory, setFilterCategory] = useState('all')
+
+  const [editingTransaction, setEditingTransaction] = useState(null)
+  const [editForm, setEditForm] = useState({ date: '', category: '', amount: '', note: '', type: 'expense' })
+  const [editError, setEditError] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -288,6 +317,7 @@ export default function App() {
       fetchCategories()
       fetchBudgets()
       fetchPayCycle()
+      fetchIsAdmin()
     }
   }, [session])
 
@@ -304,6 +334,12 @@ export default function App() {
     setBudgets([])
     setCategories([])
     setPayCycle(null)
+    setIsAdmin(false)
+  }
+
+  async function fetchIsAdmin() {
+    const { data, error } = await supabase.from('app_admins').select('user_id').limit(1)
+    setIsAdmin(!error && Array.isArray(data) && data.length > 0)
   }
 
   async function fetchTransactions() {
@@ -375,6 +411,16 @@ export default function App() {
     setForm((prev) => ({ ...prev, type, category: '' }))
   }
 
+  function handleAmountChange(e) {
+    const cleaned = sanitizeAmountInput(e.target.value)
+    if (cleaned !== null) updateField('amount', cleaned)
+  }
+
+  function handleEditAmountChange(e) {
+    const cleaned = sanitizeAmountInput(e.target.value)
+    if (cleaned !== null) setEditForm((prev) => ({ ...prev, amount: cleaned }))
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     if (!form.amount || !form.category) {
@@ -408,6 +454,40 @@ export default function App() {
   async function handleDelete(id) {
     await supabase.from('transactions').delete().eq('id', id)
     setTransactions((prev) => prev.filter((t) => t.id !== id))
+  }
+
+  function openEditModal(t) {
+    setEditingTransaction(t)
+    setEditForm({ date: t.date, category: t.category, amount: String(t.amount), note: t.note || '', type: t.type })
+    setEditError('')
+  }
+
+  async function handleSaveEdit() {
+    if (!editForm.amount || !editForm.category) {
+      setEditError('Add an amount and pick a category.')
+      return
+    }
+
+    setSavingEdit(true)
+    setEditError('')
+
+    const { error } = await supabase
+      .from('transactions')
+      .update({
+        date: editForm.date,
+        category: editForm.category,
+        amount: parseFloat(editForm.amount),
+        note: editForm.note.trim(),
+      })
+      .eq('id', editingTransaction.id)
+
+    if (error) {
+      setEditError("Couldn't save changes. Try again.")
+    } else {
+      setEditingTransaction(null)
+      fetchTransactions()
+    }
+    setSavingEdit(false)
   }
 
   function openBudgetModal() {
@@ -535,6 +615,23 @@ export default function App() {
 
   const recurringIncome = transactions.filter((t) => t.is_recurring && t.type === 'income')
   const recurringExpense = transactions.filter((t) => t.is_recurring && t.type === 'expense')
+
+  const historyFiltered = useMemo(() => {
+    return transactions.filter((t) => {
+      if (filterType !== 'all' && t.type !== filterType) return false
+      if (filterCategory !== 'all' && t.category !== filterCategory) return false
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase()
+        const matchNote = t.note && t.note.toLowerCase().includes(q)
+        const matchCategory = t.category.toLowerCase().includes(q)
+        if (!matchNote && !matchCategory) return false
+      }
+      return true
+    })
+  }, [transactions, filterType, filterCategory, searchQuery])
+
+  const historyIncome = historyFiltered.filter((t) => t.type === 'income')
+  const historyExpense = historyFiltered.filter((t) => t.type === 'expense')
 
   function handleExportPDF() {
     const doc = new jsPDF()
@@ -812,122 +909,159 @@ export default function App() {
               </>
             )}
           </section>
-
-          <section className="card">
-            <h2>Add an entry</h2>
-            <form className="entry-form" onSubmit={handleSubmit}>
-              <div className="type-toggle">
-                <button type="button" className={form.type === 'expense' ? 'active expense' : ''} onClick={() => selectType('expense')}>
-                  Expense
-                </button>
-                <button type="button" className={form.type === 'income' ? 'active income' : ''} onClick={() => selectType('income')}>
-                  Income
-                </button>
-              </div>
-
-              <div className="field-row">
-                <label>
-                  Amount (Rs.)
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={form.amount}
-                    onChange={(e) => updateField('amount', e.target.value)}
-                  />
-                </label>
-                <label>
-                  Date
-                  <input type="date" value={form.date} onChange={(e) => updateField('date', e.target.value)} />
-                </label>
-              </div>
-
-              <label>
-                Category
-                <select value={form.category} onChange={(e) => updateField('category', e.target.value)}>
-                  <option value="" disabled>
-                    Select a category
-                  </option>
-                  {(form.type === 'income' ? incomeCategories : expenseCategories).map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Note (optional)
-                <input
-                  type="text"
-                  placeholder="Anything worth remembering about this entry"
-                  value={form.note}
-                  onChange={(e) => updateField('note', e.target.value)}
-                />
-              </label>
-
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={form.isRecurring}
-                  onChange={(e) => updateField('isRecurring', e.target.checked)}
-                />
-                Save as recurring
-              </label>
-
-              {errorMsg && <p className="form-error">{errorMsg}</p>}
-
-              <button type="submit" className="submit-btn" disabled={saving}>
-                {saving ? 'Saving…' : 'Save entry'}
-              </button>
-            </form>
-          </section>
-
-          <section className="card">
-            <div className="card-header-row">
-              <h2>Recent activity</h2>
-              <button type="button" className="print-btn" onClick={handleExportPDF}>
-                Export PDF
-              </button>
-            </div>
-            {loading ? (
-              <p className="muted">Loading your entries…</p>
-            ) : cycleTransactions.length === 0 ? (
-              <p className="muted">No entries yet for this period.</p>
-            ) : (
-              <ul className="transaction-list">
-                {cycleTransactions.map((t) => (
-                  <TransactionRow key={t.id} t={t} onDelete={handleDelete} />
-                ))}
-              </ul>
-            )}
-          </section>
         </>
       )}
 
-      {activeTab === 'categories' && (
-        <>
-          {categoryError && <p className="form-error">{categoryError}</p>}
-          <CategoryManager
-            title="Income categories"
-            type="income"
-            categories={incomeCategories}
-            value={newIncomeCategory}
-            onValueChange={setNewIncomeCategory}
-            onAdd={handleAddCategory}
-            onDelete={handleDeleteCategory}
-          />
-          <CategoryManager
-            title="Expense categories"
-            type="expense"
-            categories={expenseCategories}
-            value={newExpenseCategory}
-            onValueChange={setNewExpenseCategory}
-            onAdd={handleAddCategory}
-            onDelete={handleDeleteCategory}
-          />
-        </>
+      {activeTab === 'add' && (
+        <section className="card">
+          <div className="card-header-row">
+            <h2>Add an entry</h2>
+            {isAdmin && (
+              <button type="button" className="print-btn" onClick={() => setShowCategoryModal(true)}>
+                Manage categories
+              </button>
+            )}
+          </div>
+          <form className="entry-form" onSubmit={handleSubmit}>
+            <div className="type-toggle">
+              <button type="button" className={form.type === 'expense' ? 'active expense' : ''} onClick={() => selectType('expense')}>
+                Expense
+              </button>
+              <button type="button" className={form.type === 'income' ? 'active income' : ''} onClick={() => selectType('income')}>
+                Income
+              </button>
+            </div>
+
+            <div className="field-row">
+              <label>
+                Amount (Rs.)
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={formatAmountInput(form.amount)}
+                  onChange={handleAmountChange}
+                />
+              </label>
+              <label>
+                Date
+                <input type="date" value={form.date} onChange={(e) => updateField('date', e.target.value)} />
+              </label>
+            </div>
+
+            <label>
+              Category
+              <select value={form.category} onChange={(e) => updateField('category', e.target.value)}>
+                <option value="" disabled>
+                  Select a category
+                </option>
+                {(form.type === 'income' ? incomeCategories : expenseCategories).map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Note (optional)
+              <input
+                type="text"
+                placeholder="Anything worth remembering about this entry"
+                value={form.note}
+                onChange={(e) => updateField('note', e.target.value)}
+              />
+            </label>
+
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={form.isRecurring}
+                onChange={(e) => updateField('isRecurring', e.target.checked)}
+              />
+              Save as recurring
+            </label>
+
+            {errorMsg && <p className="form-error">{errorMsg}</p>}
+
+            <button type="submit" className="submit-btn" disabled={saving}>
+              {saving ? 'Saving…' : `Save ${form.type === 'income' ? 'Income' : 'Expense'}`}
+            </button>
+          </form>
+        </section>
+      )}
+
+      {activeTab === 'history' && (
+        <section className="card">
+          <div className="card-header-row">
+            <h2>All entries</h2>
+            <button type="button" className="print-btn" onClick={handleExportPDF}>
+              Export PDF
+            </button>
+          </div>
+
+          <div className="history-filters">
+            <input
+              type="text"
+              placeholder="Search by label or category..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <div className="filter-row">
+              <div className="type-filter-pills">
+                <button type="button" className={filterType === 'all' ? 'active' : ''} onClick={() => setFilterType('all')}>
+                  All
+                </button>
+                <button type="button" className={filterType === 'income' ? 'active' : ''} onClick={() => setFilterType('income')}>
+                  Income
+                </button>
+                <button type="button" className={filterType === 'expense' ? 'active' : ''} onClick={() => setFilterType('expense')}>
+                  Expense
+                </button>
+              </div>
+              <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                <option value="all">All categories</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <span className="entry-count">
+              {historyFiltered.length} of {transactions.length} entries
+            </span>
+          </div>
+
+          {loading ? (
+            <p className="muted">Loading your entries…</p>
+          ) : historyFiltered.length === 0 ? (
+            <p className="muted">No entries match this filter.</p>
+          ) : (
+            <>
+              {historyIncome.length > 0 && (
+                <>
+                  <h3 className="history-group-label income">↑ Income</h3>
+                  <ul className="transaction-list with-edit">
+                    {historyIncome.map((t) => (
+                      <TransactionRow key={t.id} t={t} onDelete={handleDelete} onEdit={openEditModal} />
+                    ))}
+                  </ul>
+                </>
+              )}
+              {historyExpense.length > 0 && (
+                <>
+                  <h3 className="history-group-label expense">↓ Expenses</h3>
+                  <ul className="transaction-list with-edit">
+                    {historyExpense.map((t) => (
+                      <TransactionRow key={t.id} t={t} onDelete={handleDelete} onEdit={openEditModal} />
+                    ))}
+                  </ul>
+                </>
+              )}
+            </>
+          )}
+        </section>
       )}
 
       {activeTab === 'recurring' && (
@@ -958,6 +1092,99 @@ export default function App() {
             )}
           </section>
         </>
+      )}
+
+      {editingTransaction && (
+        <div className="modal-backdrop" onClick={() => setEditingTransaction(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>✎ Edit Entry</h2>
+              <button type="button" className="modal-close" onClick={() => setEditingTransaction(null)} aria-label="Close">
+                ×
+              </button>
+            </div>
+            <div className="entry-form modal-form">
+              <div className="field-row">
+                <label>
+                  Date
+                  <input
+                    type="date"
+                    value={editForm.date}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, date: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  Category
+                  <select
+                    value={editForm.category}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, category: e.target.value }))}
+                  >
+                    {(editForm.type === 'income' ? incomeCategories : expenseCategories).map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <label>
+                Amount (Rs.)
+                <input type="text" inputMode="decimal" value={formatAmountInput(editForm.amount)} onChange={handleEditAmountChange} />
+              </label>
+              <label>
+                Note
+                <input
+                  type="text"
+                  value={editForm.note}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, note: e.target.value }))}
+                />
+              </label>
+              {editError && <p className="form-error">{editError}</p>}
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="cancel-btn" onClick={() => setEditingTransaction(null)}>
+                Cancel
+              </button>
+              <button type="button" className="submit-btn" onClick={handleSaveEdit} disabled={savingEdit}>
+                {savingEdit ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCategoryModal && isAdmin && (
+        <div className="modal-backdrop" onClick={() => setShowCategoryModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Manage Categories</h2>
+              <button type="button" className="modal-close" onClick={() => setShowCategoryModal(false)} aria-label="Close">
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {categoryError && <p className="form-error">{categoryError}</p>}
+              <CategoryManager
+                title="Income categories"
+                type="income"
+                categories={incomeCategories}
+                value={newIncomeCategory}
+                onValueChange={setNewIncomeCategory}
+                onAdd={handleAddCategory}
+                onDelete={handleDeleteCategory}
+              />
+              <CategoryManager
+                title="Expense categories"
+                type="expense"
+                categories={expenseCategories}
+                value={newExpenseCategory}
+                onValueChange={setNewExpenseCategory}
+                onAdd={handleAddCategory}
+                onDelete={handleDeleteCategory}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {showBudgetModal && (
