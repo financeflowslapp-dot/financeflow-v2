@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Modal } from '../components/ui/Modal.jsx'
 import { EmptyState } from '../components/ui/EmptyState.jsx'
+import { DraftBanner } from '../components/ui/DraftBanner.jsx'
 import { formatMoney } from '../utils/format.js'
+import { useDraftPersistence } from '../hooks/useDraftPersistence.js'
 
 const CARD_COLORS = ['#6366f1','#059669','#d97706','#be123c','#0ea5e9','#9d4edd','#f43f5e','#0891b2']
 
@@ -15,7 +17,7 @@ function utilizationLabel(pct) {
 // ── Add / Edit Card Modal ─────────────────────────────────────────────────────
 function CardModal({ card, onSave, onClose }) {
   const isEdit = !!card
-  const [form, setForm] = useState({
+  const baseline = useMemo(() => ({
     bank_name:           card?.bank_name           ?? '',
     nickname:            card?.nickname            ?? '',
     credit_limit:        card?.credit_limit        ?? '',
@@ -23,10 +25,23 @@ function CardModal({ card, onSave, onClose }) {
     statement_date:      card?.statement_date      ?? '',
     payment_due_date:    card?.payment_due_date    ?? '',
     color:               card?.color               ?? CARD_COLORS[0],
-  })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [])
+  const [form, setForm] = useState(baseline)
   const [saving, setSaving] = useState(false)
   const [err,    setErr]    = useState('')
   const up = (f, v) => setForm(p => ({ ...p, [f]: v }))
+
+  // Edit forms get their own draft key (namespaced by the card's id) so an
+  // in-progress edit of one card can never be confused with another card, or
+  // with the blank "add a new card" draft.
+  const draft = useDraftPersistence('credit_card', baseline, { recordId: card?.id ?? null })
+  useEffect(() => { draft.saveDraft(form) }, [form]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleContinueDraft() {
+    const data = draft.acceptPendingDraft()
+    if (data) setForm(prev => ({ ...prev, ...data }))
+  }
 
   async function handleSave() {
     if (!form.bank_name.trim() || !form.nickname.trim() || !form.credit_limit) {
@@ -43,7 +58,7 @@ function CardModal({ card, onSave, onClose }) {
       color:               form.color,
     })
     setSaving(false)
-    if (ok) onClose()
+    if (ok) { draft.clearDraft(); onClose() } // only clear once the Supabase save actually succeeded
   }
 
   const avail = (parseFloat(form.credit_limit) || 0) - (parseFloat(form.outstanding_balance) || 0)
@@ -59,6 +74,9 @@ function CardModal({ card, onSave, onClose }) {
       </div>
     }>
       <div className="entry-form">
+        {draft.pendingDraft && (
+          <DraftBanner onContinue={handleContinueDraft} onDiscard={draft.discardPendingDraft} />
+        )}
         {/* Privacy notice */}
         <div className="keyword-explainer">
           🔒 We never store card numbers, CVV, expiry dates, or PINs — only the information you see here.
@@ -170,6 +188,7 @@ export function CreditCards({ creditCards, loading, onAdd, onUpdate, onDelete })
   async function handleAdd(payload) {
     const ok = await onAdd(payload)
     if (ok) setShowAdd(false)
+    return ok
   }
   async function handleUpdate(payload) {
     const ok = await onUpdate(editing.id, payload)

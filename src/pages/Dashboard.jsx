@@ -27,11 +27,11 @@ const SCOPE_MONTH = 'month'
 function fmt(v) { return 'Rs. ' + formatMoney(v) }
 function pct(v) { return v.toFixed(1) + '%' }
 
-function KpiCard({ label, value, raw, formatFn, sub, color, trend, icon }) {
+function KpiCard({ label, value, raw, formatFn, sub, color, trend, icon, variant }) {
   const animated = useCountUp(typeof raw === 'number' ? raw : 0)
   const shownValue = typeof raw === 'number' ? formatFn(animated) : value
   return (
-    <div className="kpi-card">
+    <div className={`kpi-card${variant ? ' kpi-card-' + variant : ''}`}>
       <div className="kpi-header">
         <span className="kpi-icon">{icon}</span>
         <span className="kpi-label">{label}</span>
@@ -193,25 +193,27 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
         <SetupProgressWidget steps={steps} progressPct={progressPct} onNavigate={onNavigate} />
       )}
 
-      {/* ── Scope toggle ── */}
-      <div className="dash-scope-row">
-        <div className="dash-scope-pills">
-          <button className={scope === SCOPE_CYCLE ? 'active' : ''} onClick={() => setScope(SCOPE_CYCLE)}>Pay Cycle</button>
-          <button className={scope === SCOPE_MONTH ? 'active' : ''} onClick={() => setScope(SCOPE_MONTH)}>This Month</button>
+      {/* ── Context: scope toggle (compact) ── */}
+      <div className="dash-context">
+        <div className="dash-scope-row">
+          <div className="dash-scope-pills">
+            <button className={scope === SCOPE_CYCLE ? 'active' : ''} onClick={() => setScope(SCOPE_CYCLE)}>Pay Cycle</button>
+            <button className={scope === SCOPE_MONTH ? 'active' : ''} onClick={() => setScope(SCOPE_MONTH)}>This Month</button>
+          </div>
+          <div className="dash-scope-actions">
+            {payCycle && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setCycleModal('edit')}>Edit cycle</button>
+            )}
+            <button className="btn btn-ghost btn-sm" onClick={() => setCycleModal('new')}>
+              {payCycle ? 'Start new cycle' : 'Set cycle'}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowBudget(true)}>⚙ Budgets</button>
+          </div>
         </div>
-        <div className="dash-scope-actions">
-          {payCycle && (
-            <button className="btn btn-ghost btn-sm" onClick={() => setCycleModal('edit')}>Edit cycle</button>
-          )}
-          <button className="btn btn-ghost btn-sm" onClick={() => setCycleModal('new')}>
-            {payCycle ? 'Start new cycle' : 'Set cycle'}
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => setShowBudget(true)}>⚙ Budgets</button>
-        </div>
+        <p className="dash-scope-label">{scopeLabel}</p>
       </div>
-      <p className="dash-scope-label">{scopeLabel}</p>
 
-      {/* ── Health Score + Balance ── */}
+      {/* ── MAIN FINANCIAL POSITION: Balance (dominant) + Health Score (supporting) ── */}
       <div className="dash-hero">
         <div className="dash-hero-balance">
           <span className="dash-hero-label">Balance</span>
@@ -219,9 +221,9 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
             Rs. {formatMoney(balance)}
           </span>
           <div className="dash-hero-splits">
-            <span className="dash-split income">↑ Rs. {formatMoney(income)}</span>
-            {savings > 0 && <span className="dash-split savings">🏦 Rs. {formatMoney(savings)}</span>}
-            <span className="dash-split expense">↓ Rs. {formatMoney(expense)}</span>
+            <span className="dash-split income">↑ Income <strong>Rs. {formatMoney(income)}</strong></span>
+            {savings > 0 && <span className="dash-split savings">🏦 Savings <strong>Rs. {formatMoney(savings)}</strong></span>}
+            <span className="dash-split expense">↓ Expenses <strong>Rs. {formatMoney(expense)}</strong></span>
           </div>
           {savings > 0 && (
             <p className="dash-balance-formula">
@@ -232,30 +234,127 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
         <HealthGauge score={health.score} label={health.label} color={health.color} />
       </div>
 
-      {/* ── Today cards ── */}
-      <div className="dash-section-label">Today</div>
-      <div className="kpi-grid kpi-grid-2">
-        <KpiCard icon="☀️" label="Today's Income"  raw={todayIncome}  formatFn={fmt} color="var(--emerald)" />
-        <KpiCard icon="💸" label="Today's Expense" raw={todayExpense} formatFn={fmt} color="var(--brick)"   />
+      {/* ── KEY FINANCIAL METRICS ── */}
+      <div className="dash-metrics">
+        <div className="dash-section-label">Key financial metrics</div>
+        <div className="kpi-grid kpi-grid-3 kpi-grid-primary">
+          <KpiCard variant="lg" icon="📈" label="Income"       raw={income}   formatFn={fmt}   color="var(--emerald)" trend={incomeTrend}  />
+          <KpiCard variant="lg" icon="📉" label="Expenses"     raw={expense}  formatFn={fmt}   color="var(--brick)"   trend={expenseTrend} />
+          <KpiCard variant="lg" icon="🏦" label="Savings"      raw={savings}  formatFn={fmt}   color="var(--gold)"    sub={`${pct(savRate)} of income`} />
+        </div>
+
+        <div className="dash-section-label dash-section-label-sub">More metrics</div>
+        <div className="kpi-grid kpi-grid-3 kpi-grid-secondary">
+          <KpiCard icon="💰" label="Savings Rate" raw={savRate}  formatFn={pct}   color={savRate >= 20 ? 'var(--emerald)' : savRate >= 10 ? 'var(--amber)' : 'var(--brick)'} />
+          <KpiCard icon="📊" label="Spending Rate" raw={spendRate} formatFn={pct} color={spendRate <= 70 ? 'var(--emerald)' : spendRate <= 90 ? 'var(--amber)' : 'var(--brick)'} />
+          <KpiCard icon="📅" label="Avg Daily Spend" raw={avgDaily} formatFn={fmt} color="var(--ink)" />
+          <KpiCard icon="🔀" label="Cash Flow" raw={cashFlowKpi} formatFn={fmt} color={cashFlowKpi >= 0 ? 'var(--emerald)' : 'var(--brick)'} sub={cashFlowKpi >= 0 ? 'Net positive' : 'Net negative'} />
+          {upcomingBills.count > 0 && <KpiCard icon="📄" label="Upcoming Bills" raw={upcomingBills.total} formatFn={fmt} color="var(--amber)" sub={`${upcomingBills.count} due in 7 days`} />}
+          {budgetRemaining !== null && <KpiCard icon="🎯" label="Budget Remaining" raw={budgetRemaining} formatFn={fmt} color="var(--forest-soft)" />}
+          {largestInc && <KpiCard icon="⬆️" label="Largest Income"  raw={largestInc.amount} formatFn={fmt} sub={largestInc.category} color="var(--emerald)" />}
+          {largestExp && <KpiCard icon="⬇️" label="Largest Expense" raw={largestExp.amount} formatFn={fmt} sub={largestExp.category} color="var(--brick)"   />}
+        </div>
+
+        <div className="dash-section-label dash-section-label-sub">Today</div>
+        <div className="kpi-grid kpi-grid-2 kpi-grid-compact">
+          <KpiCard variant="compact" icon="☀️" label="Today's Income"  raw={todayIncome}  formatFn={fmt} color="var(--emerald)" />
+          <KpiCard variant="compact" icon="💸" label="Today's Expense" raw={todayExpense} formatFn={fmt} color="var(--brick)"   />
+        </div>
       </div>
 
-      {/* ── KPI cards ── */}
-      <div className="dash-section-label">Period overview</div>
-      <div className="kpi-grid kpi-grid-3">
-        <KpiCard icon="📈" label="Income"       raw={income}   formatFn={fmt}   color="var(--emerald)" trend={incomeTrend}  />
-        <KpiCard icon="📉" label="Expenses"     raw={expense}  formatFn={fmt}   color="var(--brick)"   trend={expenseTrend} />
-        <KpiCard icon="🏦" label="Savings"      raw={savings}  formatFn={fmt}   color="var(--gold)"    sub={`${pct(savRate)} of income`} />
-        <KpiCard icon="💰" label="Savings Rate" raw={savRate}  formatFn={pct}   color={savRate >= 20 ? 'var(--emerald)' : savRate >= 10 ? 'var(--amber)' : 'var(--brick)'} />
-        <KpiCard icon="📊" label="Spending Rate" raw={spendRate} formatFn={pct} color={spendRate <= 70 ? 'var(--emerald)' : spendRate <= 90 ? 'var(--amber)' : 'var(--brick)'} />
-        <KpiCard icon="📅" label="Avg Daily Spend" raw={avgDaily} formatFn={fmt} color="var(--ink)" />
-        <KpiCard icon="🔀" label="Cash Flow" raw={cashFlowKpi} formatFn={fmt} color={cashFlowKpi >= 0 ? 'var(--emerald)' : 'var(--brick)'} sub={cashFlowKpi >= 0 ? 'Net positive' : 'Net negative'} />
-        {upcomingBills.count > 0 && <KpiCard icon="📄" label="Upcoming Bills" raw={upcomingBills.total} formatFn={fmt} color="var(--amber)" sub={`${upcomingBills.count} due in 7 days`} />}
-        {budgetRemaining !== null && <KpiCard icon="🎯" label="Budget Remaining" raw={budgetRemaining} formatFn={fmt} color="var(--forest-soft)" />}
-        {largestInc && <KpiCard icon="⬆️" label="Largest Income"  raw={largestInc.amount} formatFn={fmt} sub={largestInc.category} color="var(--emerald)" />}
-        {largestExp && <KpiCard icon="⬇️" label="Largest Expense" raw={largestExp.amount} formatFn={fmt} sub={largestExp.category} color="var(--brick)"   />}
+      {/* ── GOALS + CREDIT CARDS: secondary financial areas ── */}
+      {(creditCards.length > 0 || goals.filter(g => Number(g.saved) < Number(g.target)).length > 0) && (
+        <div className="dash-section-label">Goals &amp; Credit Cards</div>
+      )}
+      <div className="dash-secondary-grid">
+
+      {/* ── Credit Card Summary ── */}
+      {creditCards.length > 0 && (() => {
+        const totalLimit       = creditCards.reduce((s, c) => s + Number(c.credit_limit),       0)
+        const totalOutstanding = creditCards.reduce((s, c) => s + Number(c.outstanding_balance), 0)
+        const totalAvailable   = Math.max(0, totalLimit - totalOutstanding)
+        const overallUtil      = totalLimit > 0 ? (totalOutstanding / totalLimit) * 100 : 0
+        const utilInfo = overallUtil <= 30 ? { label: 'Excellent', color: 'var(--emerald)' }
+          : overallUtil <= 60 ? { label: 'Moderate', color: 'var(--amber, #d97706)' }
+          : overallUtil <= 80 ? { label: 'High',     color: '#f59e0b' }
+          :                     { label: 'Critical',  color: 'var(--brick)' }
+        return (
+          <div className="dash-card">
+            <h3 className="dash-card-title">💳 Credit Cards</h3>
+            <div className="cc-dash-summary">
+              <div className="cc-dash-kpi"><span className="cc-dash-kpi-label">Total Outstanding</span><span className="cc-dash-kpi-val" style={{ color: 'var(--brick)' }}>Rs. {formatMoney(totalOutstanding)}</span></div>
+              <div className="cc-dash-kpi"><span className="cc-dash-kpi-label">Available Credit</span><span className="cc-dash-kpi-val" style={{ color: 'var(--emerald)' }}>Rs. {formatMoney(totalAvailable)}</span></div>
+              <div className="cc-dash-kpi"><span className="cc-dash-kpi-label">Utilization</span><span className="cc-dash-kpi-val" style={{ color: utilInfo.color }}>{overallUtil.toFixed(1)}% — {utilInfo.label}</span></div>
+            </div>
+            <div className="cc-dash-cards">
+              {creditCards.map(c => {
+                const outstanding = Number(c.outstanding_balance)
+                const limit       = Number(c.credit_limit)
+                const available   = Math.max(0, limit - outstanding)
+                const pct         = limit > 0 ? (outstanding / limit) * 100 : 0
+                const info = pct <= 30 ? { label: 'Excellent', color: 'var(--emerald)' }
+                  : pct <= 60 ? { label: 'Moderate', color: '#d97706' }
+                  : pct <= 80 ? { label: 'High',     color: '#f59e0b' }
+                  :             { label: 'Critical',  color: 'var(--brick)' }
+                return (
+                  <div key={c.id} className="cc-dash-card" style={{ borderLeftColor: c.color }}>
+                    <div className="cc-dash-card-header">
+                      <div>
+                        <div className="cc-dash-bank">{c.bank_name}</div>
+                        <div className="cc-dash-nick" style={{ color: c.color }}>{c.nickname}</div>
+                      </div>
+                      <span className="cc-dash-util" style={{ color: info.color }}>{pct.toFixed(0)}%<br/><small>{info.label}</small></span>
+                    </div>
+                    <div className="cc-util-bar" style={{ margin: '6px 0 4px' }}>
+                      <div className="cc-util-fill" style={{ width: `${Math.min(pct, 100)}%`, background: c.color }} />
+                    </div>
+                    <div className="cc-dash-card-stats">
+                      <span>Outstanding: <strong style={{ color: 'var(--brick)' }}>Rs. {formatMoney(outstanding)}</strong></span>
+                      <span>Available: <strong style={{ color: 'var(--emerald)' }}>Rs. {formatMoney(available)}</strong></span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── Goals Widget ── */}
+      {goals.filter(g => Number(g.saved) < Number(g.target)).length > 0 && (
+        <div className="dash-card">
+          <h3 className="dash-card-title">🎯 Active Goals</h3>
+          <div className="dash-goals-list">
+            {goals.filter(g => Number(g.saved) < Number(g.target)).map(g => {
+              const pct = Math.min((Number(g.saved) / Number(g.target)) * 100, 100)
+              const remaining = Math.max(0, Number(g.target) - Number(g.saved))
+              const daysLeft = g.deadline ? Math.ceil((new Date(g.deadline) - new Date()) / 86400000) : null
+              return (
+                <div key={g.id} className="dash-goal-row">
+                  <div className="dash-goal-header">
+                    <span className="dash-goal-emoji">{g.emoji}</span>
+                    <span className="dash-goal-name">{g.name}</span>
+                    <span className="dash-goal-pct" style={{ color: g.color }}>{pct.toFixed(0)}%</span>
+                  </div>
+                  <div className="goal-track" style={{ margin: '6px 0 4px' }}>
+                    <div className="goal-fill" style={{ width: `${pct}%`, background: g.color, transition: 'width 600ms cubic-bezier(.16,1,.3,1)' }} />
+                  </div>
+                  <div className="dash-goal-meta">
+                    <span>Saved Rs. {formatMoney(g.saved)}</span>
+                    <span>·</span>
+                    <span>Rs. {formatMoney(remaining)} left</span>
+                    {daysLeft !== null && <><span>·</span><span className={daysLeft < 30 ? 'urgent-text' : ''}>{daysLeft < 0 ? 'Overdue' : `${daysLeft}d left`}</span></>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       </div>
 
-      {/* ── Smart Insights ── */}
+      {/* ── Smart Insights / Financial Health (secondary to main position) ── */}
       {insights.length > 0 && (
         <div className="dash-card dash-insights-card">
           <h3 className="dash-card-title">Smart Insights</h3>
@@ -269,6 +368,10 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
           </ul>
         </div>
       )}
+
+      {/* ── CHARTS / ANALYTICS ── */}
+      <div className="dash-section-label">Analytics</div>
+      <div className="dash-charts-grid">
 
       {/* ── Income vs Expense Bar ── */}
       <div className="dash-card">
@@ -399,92 +502,10 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
         </ResponsiveContainer>
       </div>
 
-      {/* ── Credit Card Summary ── */}
-      {creditCards.length > 0 && (() => {
-        const totalLimit       = creditCards.reduce((s, c) => s + Number(c.credit_limit),       0)
-        const totalOutstanding = creditCards.reduce((s, c) => s + Number(c.outstanding_balance), 0)
-        const totalAvailable   = Math.max(0, totalLimit - totalOutstanding)
-        const overallUtil      = totalLimit > 0 ? (totalOutstanding / totalLimit) * 100 : 0
-        const utilInfo = overallUtil <= 30 ? { label: 'Excellent', color: 'var(--emerald)' }
-          : overallUtil <= 60 ? { label: 'Moderate', color: 'var(--amber, #d97706)' }
-          : overallUtil <= 80 ? { label: 'High',     color: '#f59e0b' }
-          :                     { label: 'Critical',  color: 'var(--brick)' }
-        return (
-          <div className="dash-card">
-            <h3 className="dash-card-title">💳 Credit Cards</h3>
-            <div className="cc-dash-summary">
-              <div className="cc-dash-kpi"><span className="cc-dash-kpi-label">Total Outstanding</span><span className="cc-dash-kpi-val" style={{ color: 'var(--brick)' }}>Rs. {formatMoney(totalOutstanding)}</span></div>
-              <div className="cc-dash-kpi"><span className="cc-dash-kpi-label">Available Credit</span><span className="cc-dash-kpi-val" style={{ color: 'var(--emerald)' }}>Rs. {formatMoney(totalAvailable)}</span></div>
-              <div className="cc-dash-kpi"><span className="cc-dash-kpi-label">Utilization</span><span className="cc-dash-kpi-val" style={{ color: utilInfo.color }}>{overallUtil.toFixed(1)}% — {utilInfo.label}</span></div>
-            </div>
-            <div className="cc-dash-cards">
-              {creditCards.map(c => {
-                const outstanding = Number(c.outstanding_balance)
-                const limit       = Number(c.credit_limit)
-                const available   = Math.max(0, limit - outstanding)
-                const pct         = limit > 0 ? (outstanding / limit) * 100 : 0
-                const info = pct <= 30 ? { label: 'Excellent', color: 'var(--emerald)' }
-                  : pct <= 60 ? { label: 'Moderate', color: '#d97706' }
-                  : pct <= 80 ? { label: 'High',     color: '#f59e0b' }
-                  :             { label: 'Critical',  color: 'var(--brick)' }
-                return (
-                  <div key={c.id} className="cc-dash-card" style={{ borderLeftColor: c.color }}>
-                    <div className="cc-dash-card-header">
-                      <div>
-                        <div className="cc-dash-bank">{c.bank_name}</div>
-                        <div className="cc-dash-nick" style={{ color: c.color }}>{c.nickname}</div>
-                      </div>
-                      <span className="cc-dash-util" style={{ color: info.color }}>{pct.toFixed(0)}%<br/><small>{info.label}</small></span>
-                    </div>
-                    <div className="cc-util-bar" style={{ margin: '6px 0 4px' }}>
-                      <div className="cc-util-fill" style={{ width: `${Math.min(pct, 100)}%`, background: c.color }} />
-                    </div>
-                    <div className="cc-dash-card-stats">
-                      <span>Outstanding: <strong style={{ color: 'var(--brick)' }}>Rs. {formatMoney(outstanding)}</strong></span>
-                      <span>Available: <strong style={{ color: 'var(--emerald)' }}>Rs. {formatMoney(available)}</strong></span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )
-      })()}
+      </div>
 
-      {/* ── Goals Widget ── */}
-      {goals.filter(g => Number(g.saved) < Number(g.target)).length > 0 && (
-        <div className="dash-card">
-          <h3 className="dash-card-title">🎯 Active Goals</h3>
-          <div className="dash-goals-list">
-            {goals.filter(g => Number(g.saved) < Number(g.target)).map(g => {
-              const pct = Math.min((Number(g.saved) / Number(g.target)) * 100, 100)
-              const remaining = Math.max(0, Number(g.target) - Number(g.saved))
-              const daysLeft = g.deadline ? Math.ceil((new Date(g.deadline) - new Date()) / 86400000) : null
-              return (
-                <div key={g.id} className="dash-goal-row">
-                  <div className="dash-goal-header">
-                    <span className="dash-goal-emoji">{g.emoji}</span>
-                    <span className="dash-goal-name">{g.name}</span>
-                    <span className="dash-goal-pct" style={{ color: g.color }}>{pct.toFixed(0)}%</span>
-                  </div>
-                  <div className="goal-track" style={{ margin: '6px 0 4px' }}>
-                    <div className="goal-fill" style={{ width: `${pct}%`, background: g.color, transition: 'width 600ms cubic-bezier(.16,1,.3,1)' }} />
-                  </div>
-                  <div className="dash-goal-meta">
-                    <span>Saved Rs. {formatMoney(g.saved)}</span>
-                    <span>·</span>
-                    <span>Rs. {formatMoney(remaining)} left</span>
-                    {daysLeft !== null && <><span>·</span><span className={daysLeft < 30 ? 'urgent-text' : ''}>{daysLeft < 0 ? 'Overdue' : `${daysLeft}d left`}</span></>}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Recent Activity ── */}
-      <div className="dash-card">
+      {/* ── RECENT ACTIVITY (lowest visual priority) ── */}
+      <div className="dash-card dash-card-muted">
         <h3 className="dash-card-title">Recent Activity</h3>
         {recentActivity.length === 0
           ? <EmptyState title="No entries yet" />

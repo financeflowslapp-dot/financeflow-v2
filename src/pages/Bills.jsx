@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Modal } from '../components/ui/Modal.jsx'
 import { EmptyState } from '../components/ui/EmptyState.jsx'
+import { DraftBanner } from '../components/ui/DraftBanner.jsx'
 import { formatMoney } from '../utils/format.js'
+import { useDraftPersistence } from '../hooks/useDraftPersistence.js'
 
 function getBillStatus(dueDay) {
   const today = new Date().getDate()
@@ -35,17 +37,26 @@ function BillCard({ bill, onDelete }) {
 }
 
 function AddBillModal({ categories, onSave, onClose }) {
-  const [form, setForm] = useState({
+  const baseline = useMemo(() => ({
     name: '', amount: '', due_day: '', category: '',
     is_subscription: false, is_active: true,
-  })
+  }), [])
+  const [form, setForm] = useState(baseline)
   const [saving, setSaving] = useState(false)
   const up = (f, v) => setForm(p => ({ ...p, [f]: v }))
+
+  const draft = useDraftPersistence('bill', baseline, { ready: categories.length > 0 })
+  useEffect(() => { draft.saveDraft(form) }, [form]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleContinueDraft() {
+    const data = draft.acceptPendingDraft()
+    if (data) setForm(prev => ({ ...prev, ...data }))
+  }
 
   async function handleSave() {
     if (!form.name || !form.amount || !form.due_day) return
     setSaving(true)
-    await onSave({
+    const ok = await onSave({
       name:            form.name.trim(),
       amount:          parseFloat(form.amount),
       due_day:         parseInt(form.due_day),
@@ -54,6 +65,7 @@ function AddBillModal({ categories, onSave, onClose }) {
       is_active:       true,
     })
     setSaving(false)
+    if (ok) draft.clearDraft() // only clear once the Supabase save actually succeeded
   }
 
   return (
@@ -65,6 +77,9 @@ function AddBillModal({ categories, onSave, onClose }) {
         </button>
       </div>
     }>
+      {draft.pendingDraft && (
+        <DraftBanner onContinue={handleContinueDraft} onDiscard={draft.discardPendingDraft} />
+      )}
       <div className="entry-form">
         <div className="type-toggle">
           <button type="button" className={!form.is_subscription ? 'active income' : ''} onClick={() => up('is_subscription', false)}>📄 Bill</button>
@@ -99,6 +114,7 @@ export function Bills({ bills, expenseCategories, onAdd, onDelete }) {
   async function handleAdd(payload) {
     const ok = await onAdd(payload)
     if (ok) setShowAdd(false)
+    return ok
   }
 
   return (

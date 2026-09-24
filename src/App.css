@@ -154,6 +154,14 @@ input:focus,select:focus{outline:none;border-color:var(--forest-soft);box-shadow
 .checkbox-row input[type="checkbox"]{width:16px;height:16px;margin-top:2px;accent-color:var(--forest);flex-shrink:0}
 .form-error{font-size:13px;color:var(--brick);background:var(--brick-soft);padding:10px 14px;border-radius:var(--r-md);border:1px solid rgba(190,18,60,.15)}
 
+/* Draft recovery banner */
+.draft-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--gold-soft);border:1px solid var(--gold);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px}
+.draft-banner-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.draft-banner-title{font-size:13px;font-weight:700;color:var(--ink)}
+.draft-banner-desc{font-size:12px;color:var(--ink-muted)}
+.draft-banner-actions{display:flex;gap:8px;flex-shrink:0}
+@media (max-width:480px){.draft-banner{padding:10px 12px}.draft-banner-actions{width:100%}.draft-banner-actions .btn{flex:1}}
+
 /* Transactions */
 .transaction-list{list-style:none}
 .transaction-row{display:grid;grid-template-columns:8px minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:12px 4px;border-bottom:1px solid var(--line);transition:background 120ms;border-radius:var(--r-sm)}
@@ -326,9 +334,14 @@ input:focus,select:focus{outline:none;border-color:var(--forest-soft);box-shadow
    DASHBOARD — Premium Analytics
    ═══════════════════════════════════════════════════ */
 
-.dash-content { gap: 14px; }
+.dash-content { gap: 20px; max-width: 900px; }
 
-/* Scope row */
+/* ── Context (greeting / scope) — compact, minimal vertical footprint ── */
+.dash-context {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 .dash-scope-row {
   display: flex;
   align-items: center;
@@ -365,18 +378,17 @@ input:focus,select:focus{outline:none;border-color:var(--forest-soft);box-shadow
   font-size: 12px;
   color: var(--ink-muted);
   font-weight: 500;
-  margin-top: -6px;
 }
 
-/* Hero balance + health */
+/* ── MAIN FINANCIAL POSITION — the dominant visual element ── */
 .dash-hero {
   background: var(--forest);
   border-radius: var(--r-xl);
-  padding: 22px 20px;
+  padding: 28px 26px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 20px;
   box-shadow: var(--shadow-lg);
   position: relative;
   overflow: hidden;
@@ -392,7 +404,7 @@ input:focus,select:focus{outline:none;border-color:var(--forest-soft);box-shadow
 .dash-hero-balance {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   position: relative;
   z-index: 1;
   flex: 1;
@@ -401,29 +413,40 @@ input:focus,select:focus{outline:none;border-color:var(--forest-soft);box-shadow
 .dash-hero-label {
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: .06em;
+  letter-spacing: .08em;
   text-transform: uppercase;
   color: rgba(255,255,255,.6);
 }
 .dash-hero-amount {
   font-family: var(--font-serif);
-  font-size: 32px;
+  font-size: 44px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: #fff;
-  line-height: 1.1;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
 }
 .dash-hero-amount.negative { color: #fca5a5; }
-.dash-hero-splits { display: flex; gap: 14px; flex-wrap: wrap; }
+.dash-hero-splits { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
 .dash-split {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: var(--r-full);
+  padding: 5px 12px;
+  color: rgba(255,255,255,.75);
 }
-.dash-split.income  { color: #6ee7b7; }
-.dash-split.expense { color: #fca5a5; }
+.dash-split strong { font-weight: 700; margin-left: 3px; }
+.dash-split.income  { color: #d1fae5; }
+.dash-split.income strong  { color: #6ee7b7; }
+.dash-split.expense { color: #fecdd3; }
+.dash-split.expense strong { color: #fca5a5; }
+.dash-split.savings { color: #fde68a; }
+.dash-split.savings strong { color: #fbbf24; }
 
-/* Health gauge */
+/* Health gauge — supporting element, smaller than the balance */
 .health-gauge {
   display: flex;
   flex-direction: column;
@@ -432,9 +455,11 @@ input:focus,select:focus{outline:none;border-color:var(--forest-soft);box-shadow
   flex-shrink: 0;
   position: relative;
   z-index: 1;
+  opacity: .92;
 }
+.health-gauge svg { width: 104px; height: 104px; }
 .health-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   text-align: center;
 }
@@ -448,6 +473,18 @@ input:focus,select:focus{outline:none;border-color:var(--forest-soft);box-shadow
   color: var(--ink-muted);
   margin-top: 4px;
 }
+.dash-section-label-sub {
+  font-weight: 600;
+  color: var(--ink-faint);
+  margin-top: 8px;
+}
+
+/* ── KEY FINANCIAL METRICS ── */
+.dash-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
 /* KPI grid */
 .kpi-grid {
@@ -456,6 +493,7 @@ input:focus,select:focus{outline:none;border-color:var(--forest-soft);box-shadow
 }
 .kpi-grid-2 { grid-template-columns: 1fr 1fr; }
 .kpi-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.kpi-grid-compact { opacity: .9; }
 
 .kpi-card {
   background: var(--surface);
@@ -505,7 +543,47 @@ input:focus,select:focus{outline:none;border-color:var(--forest-soft);box-shadow
 .kpi-trend.up   { color: var(--emerald); }
 .kpi-trend.down { color: var(--brick); }
 
-/* Chart cards */
+/* Primary KPI tier — visually dominant among metrics (still secondary to hero) */
+.kpi-card-lg {
+  padding: 18px 16px;
+  border-color: var(--line);
+  box-shadow: var(--shadow-sm);
+}
+.kpi-card-lg .kpi-label { font-size: 12px; }
+.kpi-card-lg .kpi-value { font-size: 25px; }
+.kpi-card-lg .kpi-icon { font-size: 17px; }
+
+/* Compact / lower-priority KPI tier (e.g. "Today") */
+.kpi-card-compact {
+  padding: 10px 12px;
+  gap: 2px;
+  box-shadow: none;
+  background: var(--surface-alt);
+}
+.kpi-card-compact .kpi-label { font-size: 10px; }
+.kpi-card-compact .kpi-value { font-size: 15px; }
+.kpi-card-compact .kpi-icon { font-size: 13px; }
+
+/* ── Secondary financial areas: Goals + Credit Cards side by side on wider screens ── */
+.dash-secondary-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+/* ── Charts / analytics grid ── */
+.dash-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 760px) {
+  .dash-secondary-grid { grid-template-columns: 1fr 1fr; align-items: start; }
+  .dash-charts-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Chart / content cards */
 .dash-card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -519,6 +597,11 @@ input:focus,select:focus{outline:none;border-color:var(--forest-soft);box-shadow
   font-weight: 600;
   margin-bottom: 14px;
   color: var(--ink);
+}
+.dash-card-muted .dash-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-muted);
 }
 
 /* Smart insights */
@@ -599,10 +682,12 @@ input:focus,select:focus{outline:none;border-color:var(--forest-soft);box-shadow
 /* Mobile */
 @media (max-width: 480px) {
   .kpi-grid-3 { grid-template-columns: 1fr 1fr; }
-  .dash-hero-amount { font-size: 24px; }
+  .dash-hero-amount { font-size: 30px; }
   .kpi-value { font-size: 15px; }
-  .dash-hero { flex-direction: column; align-items: flex-start; }
+  .kpi-card-lg .kpi-value { font-size: 19px; }
+  .dash-hero { flex-direction: column; align-items: flex-start; padding: 22px 18px; }
   .health-gauge { align-self: center; }
+  .health-gauge svg { width: 92px; height: 92px; }
 }
 
 /* ═══════════════════════════════════════

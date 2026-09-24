@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { EMPTY_FORM } from '../constants/index.js'
 import { formatAmountInput, sanitizeAmountInput, formatMoney } from '../utils/format.js'
 import { Modal } from '../components/ui/Modal.jsx'
+import { DraftBanner } from '../components/ui/DraftBanner.jsx'
 import { findMatchingGoals } from '../utils/goalMatching.js'
+import { useDraftPersistence } from '../hooks/useDraftPersistence.js'
 
 // ── Smart Goal Picker Dialog ──────────────────────────────────────────────────
 // ONE dialog even when multiple goals share the same category.
@@ -101,6 +103,32 @@ export function AddEntry({ incomeCategories, expenseCategories, onAdd, isAdmin, 
 
   useEffect(() => { setForm(EMPTY_FORM()) }, [])
 
+  // ── Draft recovery ── one independent draft per entry type (income /
+  // expense) so switching the type toggle never confuses the two. "ready"
+  // waits for category data so a draft is never checked/offered against an
+  // incomplete category list.
+  const categoriesReady = incomeCategories.length > 0 || expenseCategories.length > 0
+  const incomeBaseline  = useMemo(() => ({ ...EMPTY_FORM(), type: 'income'  }), [])
+  const expenseBaseline = useMemo(() => ({ ...EMPTY_FORM(), type: 'expense' }), [])
+  const incomeDraft  = useDraftPersistence('income',  incomeBaseline,  { ready: categoriesReady })
+  const expenseDraft = useDraftPersistence('expense', expenseBaseline, { ready: categoriesReady })
+  const activeDraft  = form.type === 'income' ? incomeDraft : expenseDraft
+
+  // Autosave the form (debounced inside the hook) as the user types —
+  // routed to whichever draft matches the currently selected type.
+  useEffect(() => {
+    activeDraft.saveDraft(form)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form])
+
+  function handleContinueDraft() {
+    const data = activeDraft.acceptPendingDraft()
+    if (data) setForm(prev => ({ ...prev, ...data }))
+  }
+  function handleDiscardDraft() {
+    activeDraft.discardPendingDraft()
+  }
+
   const up      = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const selType = t      => setForm(p => ({ ...p, type: t, category: '', paymentMethod: 'cash', creditCardId: '' }))
 
@@ -148,6 +176,8 @@ export function AddEntry({ incomeCategories, expenseCategories, onAdd, isAdmin, 
       const savedCardId   = form.creditCardId
       const savedType     = form.type  // capture BEFORE setForm resets it
 
+      // Save succeeded — the unfinished draft is no longer needed.
+      activeDraft.clearDraft()
       setForm({ ...EMPTY_FORM(), type: form.type })
 
       // Credit card balance updates — pass transactionId so the effect is audited
@@ -184,6 +214,9 @@ export function AddEntry({ incomeCategories, expenseCategories, onAdd, isAdmin, 
           <h2 className="card-title">Add an entry</h2>
           {isAdmin && <button type="button" className="btn btn-ghost btn-sm" onClick={onManageCategories}>⚙ Categories</button>}
         </div>
+        {activeDraft.pendingDraft && (
+          <DraftBanner onContinue={handleContinueDraft} onDiscard={handleDiscardDraft} />
+        )}
         <form className="entry-form" onSubmit={handleSubmit}>
           <div className="type-toggle">
             <button type="button" className={form.type === 'income'  ? 'active income'  : ''} onClick={() => selType('income')}>↑ Income</button>

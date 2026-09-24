@@ -1,8 +1,10 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { EmptyState } from '../components/ui/EmptyState.jsx'
 import { formatDate, formatMoney } from '../utils/format.js'
 import { Modal } from '../components/ui/Modal.jsx'
+import { DraftBanner } from '../components/ui/DraftBanner.jsx'
 import { goalAllocationsApi } from '../services/api.js'
+import { useDraftPersistence } from '../hooks/useDraftPersistence.js'
 
 const GOAL_COLORS = ['#059669','#6366f1','#d97706','#be123c','#0ea5e9','#9d4edd']
 const GOAL_EMOJIS = ['🎯','🏠','🚗','✈️','💍','📱','🎓','💻','🏖️','💰']
@@ -324,20 +326,30 @@ function GoalCard({ goal, onDelete, onContribute, onEditTrigger, onViewHistory }
 
 // ── Add Goal Modal ─────────────────────────────────────────────────────────────
 function AddGoalModal({ onSave, onClose }) {
-  const [form, setForm] = useState({ name: '', target: '', saved: '0', deadline: '', color: GOAL_COLORS[0], emoji: GOAL_EMOJIS[0] })
+  const baseline = useMemo(() => ({ name: '', target: '', saved: '0', deadline: '', color: GOAL_COLORS[0], emoji: GOAL_EMOJIS[0] }), [])
+  const [form, setForm] = useState(baseline)
   const [saving, setSaving] = useState(false)
   const up = (f, v) => setForm(p => ({ ...p, [f]: v }))
+
+  const draft = useDraftPersistence('goal', baseline)
+  useEffect(() => { draft.saveDraft(form) }, [form]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleContinueDraft() {
+    const data = draft.acceptPendingDraft()
+    if (data) setForm(prev => ({ ...prev, ...data }))
+  }
 
   async function handleSave() {
     if (!form.name.trim() || !form.target) return
     setSaving(true)
-    await onSave({
+    const ok = await onSave({
       name: form.name.trim(), target: parseFloat(form.target),
       saved: parseFloat(form.saved) || 0, deadline: form.deadline || null,
       color: form.color, emoji: form.emoji,
       linked_categories: [], trigger_keywords: [],
     })
     setSaving(false)
+    if (ok) draft.clearDraft() // only clear once the Supabase save actually succeeded
   }
 
   return (
@@ -349,6 +361,9 @@ function AddGoalModal({ onSave, onClose }) {
         </button>
       </div>
     }>
+      {draft.pendingDraft && (
+        <DraftBanner onContinue={handleContinueDraft} onDiscard={draft.discardPendingDraft} />
+      )}
       <div className="entry-form">
         <div>
           <label style={{ marginBottom: 8, display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--ink-muted)' }}>Icon</label>
@@ -426,6 +441,7 @@ export function Goals({ goals, expenseCategories = [], transactions = [], onAdd,
   async function handleAdd(payload) {
     const ok = await onAdd(payload)
     if (ok) setShowAdd(false)
+    return ok
   }
 
   return (

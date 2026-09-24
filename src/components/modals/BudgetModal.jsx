@@ -1,15 +1,28 @@
-import {useState} from 'react'
+import {useEffect,useMemo,useState} from 'react'
 import {Modal} from '../ui/Modal.jsx'
+import {DraftBanner} from '../ui/DraftBanner.jsx'
 import {budgetClass} from '../../utils/calculations.js'
+import {useDraftPersistence} from '../../hooks/useDraftPersistence.js'
 export function BudgetModal({expenseCategories,budgets,expBreakdownAll,onSave,onClose}){
-  const[inputs,setInputs]=useState(()=>{
+  const baseline=useMemo(()=>{
     const m={}
     expenseCategories.forEach(c=>{const ex=budgets.find(b=>b.category===c.name);m[c.name]=ex?String(ex.monthly_limit):''})
     return m
-  })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[])
+  const[inputs,setInputs]=useState(baseline)
   const[saving,setSaving]=useState(false)
   const[err,setErr]=useState('')
-  async function handleSave(){setSaving(true);setErr('');const ok=await onSave(expenseCategories,inputs);setSaving(false);if(ok)onClose();else setErr("Couldn't save.")}
+
+  const draft=useDraftPersistence('budget',baseline,{ready:expenseCategories.length>0})
+  useEffect(()=>{draft.saveDraft(inputs)},[inputs]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleContinueDraft(){
+    const data=draft.acceptPendingDraft()
+    if(data)setInputs(prev=>({...prev,...data}))
+  }
+
+  async function handleSave(){setSaving(true);setErr('');const ok=await onSave(expenseCategories,inputs);setSaving(false);if(ok){draft.clearDraft();onClose()}else setErr("Couldn't save.")}
   return(
     <Modal title="⚙ Budget Limits" onClose={onClose} footer={
       <div className="modal-actions">
@@ -17,6 +30,9 @@ export function BudgetModal({expenseCategories,budgets,expBreakdownAll,onSave,on
         <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving?'Saving…':'Save limits'}</button>
       </div>
     }>
+      {draft.pendingDraft&&(
+        <DraftBanner onContinue={handleContinueDraft} onDiscard={draft.discardPendingDraft}/>
+      )}
       <p className="muted" style={{marginTop:0,marginBottom:16}}>Yellow = 80%+, Red = exceeded.</p>
       {expenseCategories.map(c=>{
         const spent=expBreakdownAll.find(b=>b.category===c.name)?.total||0
