@@ -5,6 +5,51 @@ import { Modal } from '../components/ui/Modal.jsx'
 import { DraftBanner } from '../components/ui/DraftBanner.jsx'
 import { findMatchingGoals } from '../utils/goalMatching.js'
 import { useDraftPersistence } from '../hooks/useDraftPersistence.js'
+import { useAuth } from '../contexts/AuthContext.jsx'
+
+// ── Income/Expense sub-tab persistence ──────────────────────────────────────
+// Same idea as App.jsx's main-tab persistence, scoped to the "add" screen's
+// internal Income/Expense toggle: financeflow_add_entry_type_<userId>.
+// Unlike App.jsx's activeTab, no cold-boot race exists here — AddEntry only
+// ever mounts *after* App has already confirmed the session (it's rendered
+// inside App's post-auth-gate JSX), so `userId` is always known synchronously
+// on this component's very first render. That means a plain lazy useState
+// initializer is enough; no separate "ready" guard is needed.
+// Entirely separate from the per-type draft-recovery keys/logic in
+// useDraftPersistence.js — nothing here touches that file or those keys.
+const ADD_ENTRY_TYPE_STORAGE_PREFIX = 'financeflow_add_entry_type_'
+const VALID_ENTRY_TYPES = new Set(['income', 'expense'])
+
+function addEntryTypeStorageKey(userId) {
+  return `${ADD_ENTRY_TYPE_STORAGE_PREFIX}${userId}`
+}
+
+function readStoredAddEntryType(userId) {
+  if (!userId) return null
+  try {
+    const stored = localStorage.getItem(addEntryTypeStorageKey(userId))
+    return VALID_ENTRY_TYPES.has(stored) ? stored : null
+  } catch {
+    return null // storage unavailable/private mode — fall back to default
+  }
+}
+
+function writeStoredAddEntryType(userId, type) {
+  if (!userId) return
+  try {
+    localStorage.setItem(addEntryTypeStorageKey(userId), type)
+  } catch {
+    // storage full/unavailable — best-effort convenience only, never throw
+  }
+}
+
+// Fresh form, with the persisted Income/Expense choice applied if one
+// exists — used both for the initial mount and the existing on-mount reset
+// below, so the two never disagree.
+function getInitialFormState(userId) {
+  const storedType = readStoredAddEntryType(userId)
+  return storedType ? { ...EMPTY_FORM(), type: storedType } : EMPTY_FORM()
+}
 
 // ── Smart Goal Picker Dialog ──────────────────────────────────────────────────
 // ONE dialog even when multiple goals share the same category.
@@ -96,12 +141,21 @@ function GoalPickerDialog({ linkedGoals, amount, category, onAllocate, onSkip })
 
 // ── Main AddEntry Form ────────────────────────────────────────────────────────
 export function AddEntry({ incomeCategories, expenseCategories, onAdd, isAdmin, onManageCategories, goals = [], onAllocateToGoal, creditCards = [], onRecordPurchase, onRecordRepayment }) {
-  const [form,         setForm]         = useState(() => EMPTY_FORM())
+  const { session }          = useAuth()
+  const userId               = session?.user?.id || null
+  const [form,         setForm]         = useState(() => getInitialFormState(userId))
   const [saving,       setSaving]       = useState(false)
   const [err,          setErr]          = useState('')
   const [pendingAlloc, setPendingAlloc] = useState(null)
 
-  useEffect(() => { setForm(EMPTY_FORM()) }, [])
+  useEffect(() => { setForm(getInitialFormState(userId)) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist the Income/Expense sub-tab on every change so it survives a
+  // reload/remount alongside the restored main "add" tab. Runs on mount too
+  // (writing back the just-restored value) — harmless, and keeps this the
+  // single place that ever writes this key, mirroring App.jsx's activeTab
+  // persistence.
+  useEffect(() => { writeStoredAddEntryType(userId, form.type) }, [userId, form.type])
 
   // ── Draft recovery ── one independent draft per entry type (income /
   // expense) so switching the type toggle never confuses the two. "ready"
