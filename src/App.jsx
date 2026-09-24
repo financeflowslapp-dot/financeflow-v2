@@ -41,11 +41,43 @@ const ADMIN_TAB = { id: 'admin', label: '👥 Users' }
 // Cards/History/Recurring) the user was last on after the PWA is backgrounded
 // and reloads/remounts, instead of always snapping back to Dashboard.
 //
-// Deliberately mirrors useDraftPersistence's approach: a plain localStorage
-// value namespaced per authenticated user (never global), read/written
-// defensively so a full/unavailable/private-mode storage never throws.
-// This is separate, additive state — it does not touch the draft-recovery
-// keys or logic in useDraftPersistence.js at all.
+// WHY A PLAIN `useState('dashboard')` + "restore in a useEffect" DOESN'T WORK:
+// AuthContext resolves the Supabase session asynchronously (`getSession()` is
+// a promise). So on every reload, App's FIRST render always has
+// `session === null`. If activeTab starts hardcoded at 'dashboard' and is
+// only corrected once an effect later discovers the real user id, there are
+// two ways that "correction" gets lost by the time anything is visible:
+//   1. On a normal in-app tab switch (no reload), the effect's dependency
+//      (userId) never changes again, so it never re-runs and never
+//      overwrites a tab the user deliberately picked — this part is fine.
+//   2. On an actual reload, the risk is the OPPOSITE direction: because the
+//      restore only runs after userId resolves, anything that reads
+//      `activeTab` before that (e.g. a persist effect that isn't carefully
+//      gated) can re-save the still-default 'dashboard' value over the
+//      correct stored one, permanently clobbering it. Depending on effect
+//      ordering/dependency arrays, that clobber can happen silently on
+//      every single reload — which matches the "still doesn't work" report.
+// The fix here removes the dependency on effect timing entirely: the
+// correct tab is computed synchronously, as part of the FIRST render, using
+// React's lazy `useState(() => ...)` initializer — not discovered later.
+//
+// HOW THE INITIAL GUESS IS MADE WITHOUT WAITING FOR AUTH:
+// The authenticated user's id isn't known synchronously on cold start
+// (Supabase's own session read is itself async), so the lazy initializer
+// can't key off it directly. Instead we keep one extra, tiny pointer key —
+// "which user id last used this browser" — written every time a user id
+// becomes known. On the very next mount, before auth has resolved, the
+// initializer uses that pointer to make an informed guess. Once the real
+// session resolves, an effect re-validates that guess against the ACTUAL
+// user id and corrects it if wrong (e.g. a different user just logged in) —
+// so a stale/incorrect guess is only ever used for the first paint, and
+// only behind the existing authLoading/isNewUser spinner gates below, never
+// shown to the person.
+//
+// Mirrors useDraftPersistence's approach: plain localStorage, namespaced per
+// authenticated user, read/written defensively so unavailable/private-mode
+// storage never throws. Entirely separate from the draft-recovery keys/logic
+// in useDraftPersistence.js — nothing here touches that file.
 //
 // 'admin' is intentionally excluded from restoration: isAdmin is resolved
 // asynchronously after login, so trusting a stored 'admin' tab before that
@@ -53,6 +85,7 @@ const ADMIN_TAB = { id: 'admin', label: '👥 Users' }
 // since demoted) leave the main area blank. Every other main tab has no such
 // permission gate, so it's safe to restore immediately.
 const NAV_TAB_STORAGE_PREFIX = 'financeflow_active_tab_'
+const LAST_USER_ID_KEY = 'financeflow_last_user_id' // not sensitive: same Supabase user id already embedded in the draft-recovery keys and the Supabase auth token itself; used only to guess which per-user tab key to read before auth resolves
 const RESTORABLE_TAB_IDS = new Set(BASE_TABS.map(t => t.id))
 
 function navTabStorageKey(userId) {
@@ -79,24 +112,43 @@ function writeStoredActiveTab(userId, tab) {
   }
 }
 
+// Lazy initializer: runs exactly once, synchronously, during the first
+// render — before AuthContext's session promise has resolved. Guesses using
+// whichever user id last used this browser; the effect in App() re-validates
+// this against the real, authenticated user id as soon as it's known.
+function getInitialActiveTab() {
+  try {
+    const lastUserId = localStorage.getItem(LAST_USER_ID_KEY)
+    return readStoredActiveTab(lastUserId) || 'dashboard'
+  } catch {
+    return 'dashboard'
+  }
+}
+
 export default function App() {
   const { session, loading: authLoading, profile, isNewUser, onboardingComplete, setOnboardingComplete, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
-  const [activeTab,    setActiveTab]    = useState('dashboard')
+  const [activeTab,    setActiveTab]    = useState(getInitialActiveTab)
   const [showCatModal, setShowCatModal] = useState(false)
   const [catError,     setCatError]     = useState('')
   const [cycleModal,   setCycleModal]   = useState(null) // null | 'edit' | 'new'
 
   const userId = session?.user?.id || null
 
-  // Restore the last active main screen once we know who's logged in, and
-  // flag navigation as "ready" so the persist effect below never fires with
-  // a stale (pre-restore) value in the same pass — see effect ordering note.
+  // Once the REAL authenticated user id is known, re-validate the initial
+  // guess against that specific user's own stored tab. If it's the same
+  // user who last used this browser, `stored` matches the guess exactly and
+  // this setActiveTab call is a same-value no-op (React bails out — no
+  // extra render, no flicker). If it's a different user (Test 6: logout →
+  // login as someone else in the same session, no reload in between), this
+  // explicitly resets to that user's own stored tab, or 'dashboard' if they
+  // have none — the previous user's screen is never shown or persisted
+  // under the new user's key.
   const [navReady, setNavReady] = useState(false)
   useEffect(() => {
     if (!userId) return
-    const stored = readStoredActiveTab(userId)
-    setActiveTab(prev => stored || prev)
+    setActiveTab(readStoredActiveTab(userId) || 'dashboard')
+    try { localStorage.setItem(LAST_USER_ID_KEY, userId) } catch { /* ignore */ }
     setNavReady(true)
   }, [userId])
 
@@ -104,7 +156,9 @@ export default function App() {
   // the next reload/remount. Centralized here in App — every way of changing
   // screens (nav clicks, onNavigate from Dashboard/StepSuccessBar, etc.)
   // already flows through setActiveTab/navigateTo, so this one effect covers
-  // all of them without touching per-page navigation code.
+  // all of them without touching per-page navigation code. Gated on
+  // `navReady` so this can never fire (and clobber the stored value) before
+  // the validation effect above has run at least once for this user.
   useEffect(() => {
     if (!userId || !navReady) return
     writeStoredActiveTab(userId, activeTab)
