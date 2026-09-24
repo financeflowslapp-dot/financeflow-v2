@@ -36,6 +36,49 @@ const BASE_TABS = [
 ]
 const ADMIN_TAB = { id: 'admin', label: '👥 Users' }
 
+// ── Last-active-screen persistence ──────────────────────────────────────────
+// Restores whichever main screen (Dashboard/Income-Expense/Goals/Bills/
+// Cards/History/Recurring) the user was last on after the PWA is backgrounded
+// and reloads/remounts, instead of always snapping back to Dashboard.
+//
+// Deliberately mirrors useDraftPersistence's approach: a plain localStorage
+// value namespaced per authenticated user (never global), read/written
+// defensively so a full/unavailable/private-mode storage never throws.
+// This is separate, additive state — it does not touch the draft-recovery
+// keys or logic in useDraftPersistence.js at all.
+//
+// 'admin' is intentionally excluded from restoration: isAdmin is resolved
+// asynchronously after login, so trusting a stored 'admin' tab before that
+// check completes could either flash an unauthorized screen or (for a user
+// since demoted) leave the main area blank. Every other main tab has no such
+// permission gate, so it's safe to restore immediately.
+const NAV_TAB_STORAGE_PREFIX = 'financeflow_active_tab_'
+const RESTORABLE_TAB_IDS = new Set(BASE_TABS.map(t => t.id))
+
+function navTabStorageKey(userId) {
+  return `${NAV_TAB_STORAGE_PREFIX}${userId}`
+}
+
+function readStoredActiveTab(userId) {
+  if (!userId) return null
+  try {
+    const stored = localStorage.getItem(navTabStorageKey(userId))
+    return RESTORABLE_TAB_IDS.has(stored) ? stored : null
+  } catch {
+    return null // storage unavailable/private mode — fall back to default tab
+  }
+}
+
+function writeStoredActiveTab(userId, tab) {
+  if (!userId) return
+  try {
+    localStorage.setItem(navTabStorageKey(userId), tab)
+  } catch {
+    // storage full/unavailable — this is a best-effort convenience feature,
+    // it must never throw or interrupt navigation
+  }
+}
+
 export default function App() {
   const { session, loading: authLoading, profile, isNewUser, onboardingComplete, setOnboardingComplete, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
@@ -43,6 +86,29 @@ export default function App() {
   const [showCatModal, setShowCatModal] = useState(false)
   const [catError,     setCatError]     = useState('')
   const [cycleModal,   setCycleModal]   = useState(null) // null | 'edit' | 'new'
+
+  const userId = session?.user?.id || null
+
+  // Restore the last active main screen once we know who's logged in, and
+  // flag navigation as "ready" so the persist effect below never fires with
+  // a stale (pre-restore) value in the same pass — see effect ordering note.
+  const [navReady, setNavReady] = useState(false)
+  useEffect(() => {
+    if (!userId) return
+    const stored = readStoredActiveTab(userId)
+    setActiveTab(prev => stored || prev)
+    setNavReady(true)
+  }, [userId])
+
+  // Persist the active main screen on every change so it can be restored on
+  // the next reload/remount. Centralized here in App — every way of changing
+  // screens (nav clicks, onNavigate from Dashboard/StepSuccessBar, etc.)
+  // already flows through setActiveTab/navigateTo, so this one effect covers
+  // all of them without touching per-page navigation code.
+  useEffect(() => {
+    if (!userId || !navReady) return
+    writeStoredActiveTab(userId, activeTab)
+  }, [userId, navReady, activeTab])
 
   const { transactions, loading: txnLoading, fetchTransactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions(session?.user?.id)
   const { categories, incomeCategories, expenseCategories, fetchCategories, addCategory, deleteCategory, reorderCategories } = useCategories()
