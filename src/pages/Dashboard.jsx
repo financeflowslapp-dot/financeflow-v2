@@ -19,7 +19,7 @@ import {
   buildUpcomingBills, buildInsights,
 } from '../utils/dashboardCalcs.js'
 
-const PIE_COLORS = ['#6366f1','#059669','#e07a5f','#d97706','#0ea5e9','#9d4edd']
+const PIE_COLORS = ['#159A75','#3B82F6','#8B5CF6','#F59E0B','#EF4444','#0EA5E9']
 
 const SCOPE_CYCLE = 'cycle'
 const SCOPE_MONTH = 'month'
@@ -27,11 +27,11 @@ const SCOPE_MONTH = 'month'
 function fmt(v) { return 'Rs. ' + formatMoney(v) }
 function pct(v) { return v.toFixed(1) + '%' }
 
-function KpiCard({ label, value, raw, formatFn, sub, color, trend, icon, variant }) {
+function KpiCard({ label, value, raw, formatFn, sub, color, trend, icon, variant, tone }) {
   const animated = useCountUp(typeof raw === 'number' ? raw : 0)
   const shownValue = typeof raw === 'number' ? formatFn(animated) : value
   return (
-    <div className={`kpi-card${variant ? ' kpi-card-' + variant : ''}`}>
+    <div className={`kpi-card${variant ? ' kpi-card-' + variant : ''}${tone ? ' kpi-tone-' + tone : ''}`}>
       <div className="kpi-header">
         <span className="kpi-icon">{icon}</span>
         <span className="kpi-label">{label}</span>
@@ -238,9 +238,9 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
       <div className="dash-metrics">
         <div className="dash-section-label">Key financial metrics</div>
         <div className="kpi-grid kpi-grid-3 kpi-grid-primary">
-          <KpiCard variant="lg" icon="📈" label="Income"       raw={income}   formatFn={fmt}   color="var(--emerald)" trend={incomeTrend}  />
-          <KpiCard variant="lg" icon="📉" label="Expenses"     raw={expense}  formatFn={fmt}   color="var(--brick)"   trend={expenseTrend} />
-          <KpiCard variant="lg" icon="🏦" label="Savings"      raw={savings}  formatFn={fmt}   color="var(--gold)"    sub={`${pct(savRate)} of income`} />
+          <KpiCard variant="lg" tone="income"  icon="📈" label="Income"       raw={income}   formatFn={fmt}   color="var(--emerald)" trend={incomeTrend}  />
+          <KpiCard variant="lg" tone="expense" icon="📉" label="Expenses"     raw={expense}  formatFn={fmt}   color="var(--brick)"   trend={expenseTrend} />
+          <KpiCard variant="lg" tone="savings" icon="🏦" label="Savings"      raw={savings}  formatFn={fmt}   color="var(--purple)"  sub={`${pct(savRate)} of income`} />
         </div>
 
         <div className="dash-section-label dash-section-label-sub">More metrics</div>
@@ -275,8 +275,8 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
         const totalAvailable   = Math.max(0, totalLimit - totalOutstanding)
         const overallUtil      = totalLimit > 0 ? (totalOutstanding / totalLimit) * 100 : 0
         const utilInfo = overallUtil <= 30 ? { label: 'Excellent', color: 'var(--emerald)' }
-          : overallUtil <= 60 ? { label: 'Moderate', color: 'var(--amber, #d97706)' }
-          : overallUtil <= 80 ? { label: 'High',     color: '#f59e0b' }
+          : overallUtil <= 60 ? { label: 'Moderate', color: 'var(--amber, #F59E0B)' }
+          : overallUtil <= 80 ? { label: 'High',     color: '#F59E0B' }
           :                     { label: 'Critical',  color: 'var(--brick)' }
         return (
           <div className="dash-card">
@@ -293,8 +293,8 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
                 const available   = Math.max(0, limit - outstanding)
                 const pct         = limit > 0 ? (outstanding / limit) * 100 : 0
                 const info = pct <= 30 ? { label: 'Excellent', color: 'var(--emerald)' }
-                  : pct <= 60 ? { label: 'Moderate', color: '#d97706' }
-                  : pct <= 80 ? { label: 'High',     color: '#f59e0b' }
+                  : pct <= 60 ? { label: 'Moderate', color: '#F59E0B' }
+                  : pct <= 80 ? { label: 'High',     color: '#F59E0B' }
                   :             { label: 'Critical',  color: 'var(--brick)' }
                 return (
                   <div key={c.id} className="cc-dash-card" style={{ borderLeftColor: c.color }}>
@@ -383,9 +383,9 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
             <YAxis tick={{ fontSize: 10, fill: 'var(--ink-muted)' }} tickFormatter={v => 'Rs.' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v)} />
             <Tooltip content={<ChartTooltip />} />
             <Legend />
-            <Bar dataKey="Income"   fill="#059669" radius={[6,6,0,0]} />
-            <Bar dataKey="Expenses" fill="#be123c" radius={[6,6,0,0]} />
-            <Bar dataKey="Savings"  fill="#d97706" radius={[6,6,0,0]} />
+            <Bar dataKey="Income"   fill="#159A75" radius={[6,6,0,0]} />
+            <Bar dataKey="Expenses" fill="#EF4444" radius={[6,6,0,0]} />
+            <Bar dataKey="Savings"  fill="#F59E0B" radius={[6,6,0,0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -400,8 +400,8 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
             <YAxis tick={{ fontSize: 10, fill: 'var(--ink-muted)' }} tickFormatter={v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v} />
             <Tooltip content={<ChartTooltip />} />
             <Legend />
-            <Bar dataKey="income"  name="Income"  fill="#059669" radius={[4,4,0,0]} />
-            <Bar dataKey="expense" name="Expense" fill="#be123c" radius={[4,4,0,0]} />
+            <Bar dataKey="income"  name="Income"  fill="#159A75" radius={[4,4,0,0]} />
+            <Bar dataKey="expense" name="Expense" fill="#EF4444" radius={[4,4,0,0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -416,9 +416,9 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
             <YAxis tick={{ fontSize: 10, fill: 'var(--ink-muted)' }} tickFormatter={v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v} />
             <Tooltip content={<ChartTooltip />} />
             <Legend />
-            <Bar dataKey="income"  name="Income"  fill="#059669" radius={[4,4,0,0]} />
-            <Bar dataKey="expense" name="Expense" fill="#be123c" radius={[4,4,0,0]} />
-            <Bar dataKey="savings" name="Savings" fill="#d97706" radius={[4,4,0,0]} />
+            <Bar dataKey="income"  name="Income"  fill="#159A75" radius={[4,4,0,0]} />
+            <Bar dataKey="expense" name="Expense" fill="#EF4444" radius={[4,4,0,0]} />
+            <Bar dataKey="savings" name="Savings" fill="#F59E0B" radius={[4,4,0,0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -433,7 +433,7 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
             <YAxis tick={{ fontSize: 10, fill: 'var(--ink-muted)' }} tickFormatter={v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v} />
             <Tooltip content={<ChartTooltip />} />
             <ReferenceLine y={0} stroke="var(--ink-muted)" strokeDasharray="4 4" />
-            <Line dataKey="cashFlow" name="Cash Flow" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 4, fill: '#6366f1' }} activeDot={{ r: 6 }} />
+            <Line dataKey="cashFlow" name="Cash Flow" stroke="#3B82F6" strokeWidth={2.5} dot={{ r: 4, fill: '#3B82F6' }} activeDot={{ r: 6 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -447,7 +447,7 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
             <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--ink-muted)' }} />
             <YAxis tick={{ fontSize: 10, fill: 'var(--ink-muted)' }} tickFormatter={v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v} />
             <Tooltip content={<ChartTooltip />} />
-            <Line dataKey="savings" name="Savings" stroke="#d97706" strokeWidth={2.5} dot={{ r: 4, fill: '#d97706' }} activeDot={{ r: 6 }} />
+            <Line dataKey="savings" name="Savings" stroke="#F59E0B" strokeWidth={2.5} dot={{ r: 4, fill: '#F59E0B' }} activeDot={{ r: 6 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -479,7 +479,7 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
               <YAxis type="category" dataKey="category" width={90} tick={{ fontSize: 11, fill: 'var(--ink-muted)' }} />
               <Tooltip content={<ChartTooltip />} />
               <Bar dataKey="spent" name="Spent" radius={[0,6,6,0]}>
-                {budgetUsage.map((b, i) => <Cell key={i} fill={b.pct >= 100 ? '#be123c' : b.pct >= 80 ? '#d97706' : '#059669'} />)}
+                {budgetUsage.map((b, i) => <Cell key={i} fill={b.pct >= 100 ? '#EF4444' : b.pct >= 80 ? '#F59E0B' : '#159A75'} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -496,7 +496,7 @@ export function Dashboard({ transactions, loading, budgets, payCycle, expenseCat
             <YAxis tick={{ fontSize: 10, fill: 'var(--ink-muted)' }} tickFormatter={v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v} />
             <Tooltip content={<ChartTooltip />} />
             <Legend />
-            <Bar dataKey="current"  name="This period" fill="#6366f1" radius={[4,4,0,0]} />
+            <Bar dataKey="current"  name="This period" fill="#3B82F6" radius={[4,4,0,0]} />
             <Bar dataKey="previous" name="Last month"  fill="var(--line)" radius={[4,4,0,0]} />
           </BarChart>
         </ResponsiveContainer>

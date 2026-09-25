@@ -53,12 +53,12 @@ export function Admin({ userProfiles, allTransactions }) {
       {/* ── KPI cards ── */}
       <div className="admin-stats">
         {[
-          { label: 'Total users',        value: stats.total  },
-          { label: 'Active today',        value: stats.active },
-          { label: 'Total transactions',  value: stats.txns   },
+          { label: 'Total users',        value: stats.total,  tone: 'emerald' },
+          { label: 'Active today',        value: stats.active, tone: 'blue' },
+          { label: 'Total transactions',  value: stats.txns,   tone: 'purple' },
         ].map(s => (
-          <div key={s.label} className="admin-stat-card">
-            <span className="admin-stat-value">{s.value}</span>
+          <div key={s.label} className={`admin-stat-card admin-stat-card--${s.tone}`}>
+            <span className="admin-stat-value" style={{ color: `var(--${s.tone === 'emerald' ? 'forest' : s.tone})` }}>{s.value}</span>
             <span className="admin-stat-label">{s.label}</span>
           </div>
         ))}
@@ -91,7 +91,7 @@ export function Admin({ userProfiles, allTransactions }) {
                     <div className="user-info">
                       <span className="user-name">{u.full_name || 'Unknown'}</span>
                       <span className="user-email">{maskEmail(u.email)}</span>
-                      <span className={`user-activity${isNow ? ' active-now' : ''}`}>
+                      <span className={`user-activity${isNow ? ' active-now' : isToday ? ' active-today' : ''}`}>
                         {label}
                       </span>
                       {u.first_seen && (

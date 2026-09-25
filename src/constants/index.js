@@ -1,5 +1,5 @@
 export const SAVINGS_CATEGORIES = ['Savings', 'savings', 'SAVINGS']
-export const PALETTE = ['#6c63ff','#059669','#e07a5f','#d97706','#0ea5e9','#9d4edd','#f43f5e','#0891b2','#84cc16','#06d6a0']
+export const PALETTE = ['#159A75','#3B82F6','#8B5CF6','#F59E0B','#EF4444','#0EA5E9','#35B779','#7C3AED','#0284C7','#F97316']
 // Returns today's date in YYYY-MM-DD using LOCAL time — not UTC — so
 // users in UTC+5:30 (Sri Lanka) always get the correct local date.
 export const TODAY = () => {

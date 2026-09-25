@@ -5,7 +5,7 @@ import { DraftBanner } from '../components/ui/DraftBanner.jsx'
 import { formatMoney } from '../utils/format.js'
 import { useDraftPersistence } from '../hooks/useDraftPersistence.js'
 
-const CARD_COLORS = ['#6366f1','#059669','#d97706','#be123c','#0ea5e9','#9d4edd','#f43f5e','#0891b2']
+const CARD_COLORS = ['#3B82F6','#2563EB','#60A5FA','#1D4ED8','#0EA5E9','#0284C7','#38BDF8','#0369A1']
 
 function utilizationLabel(pct) {
   if (pct <= 30) return { label: 'Excellent', cls: 'util-excellent' }

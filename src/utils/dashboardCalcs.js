@@ -44,7 +44,7 @@ export function calcHealthScore(txns, budgets) {
   const income  = sumIncome(txns)
   const expense = sumNetExpense(txns)
   const savings = sumSavings(txns)
-  if (income === 0) return { score: 0, label: 'No data', color: '#737370' }
+  if (income === 0) return { score: 0, label: 'No data', color: '#6B7772' }
 
   const savingsRate  = savings / income
   const spendingRate = expense / income
@@ -60,7 +60,7 @@ export function calcHealthScore(txns, budgets) {
   ))
 
   const label = score >= 80 ? 'Excellent' : score >= 60 ? 'Good' : score >= 40 ? 'Fair' : 'Needs attention'
-  const color = score >= 80 ? '#059669' : score >= 60 ? '#d97706' : score >= 40 ? '#f59e0b' : '#be123c'
+  const color = score >= 80 ? '#159A75' : score >= 60 ? '#F59E0B' : score >= 40 ? '#F59E0B' : '#EF4444'
   return { score, label, color }
 }
 

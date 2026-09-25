@@ -6,7 +6,7 @@ import { DraftBanner } from '../components/ui/DraftBanner.jsx'
 import { goalAllocationsApi } from '../services/api.js'
 import { useDraftPersistence } from '../hooks/useDraftPersistence.js'
 
-const GOAL_COLORS = ['#059669','#6366f1','#d97706','#be123c','#0ea5e9','#9d4edd']
+const GOAL_COLORS = ['#8B5CF6','#159A75','#35B779','#7C3AED','#A78BFA','#0B5D4B']
 const GOAL_EMOJIS = ['🎯','🏠','🚗','✈️','💍','📱','🎓','💻','🏖️','💰']
 
 // Parse a raw keyword string into a clean array.
