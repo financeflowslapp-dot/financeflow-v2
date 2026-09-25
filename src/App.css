@@ -137,8 +137,8 @@ ul{list-style:none}
 .btn-ghost:hover{background:var(--surface-alt);color:var(--ink)}
 .btn-sm{padding:6px 12px;font-size:12px;border-radius:var(--r-sm)}
 .btn-full{width:100%}
-.icon-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:14px;transition:all 120ms}
-.icon-btn:hover{background:var(--surface-alt)}
+.icon-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--mint-light);color:var(--ink);font-size:15px;transition:all 120ms}
+.icon-btn:hover{background:var(--surface-alt);border-color:var(--forest-soft)}
 .signout-btn{color:var(--brick)}
 .signout-btn:hover{background:var(--brick-soft);border-color:var(--brick)}
 
@@ -882,16 +882,13 @@ input:focus,select:focus{outline:none;border-color:var(--forest-soft);box-shadow
   margin-top: -4px;
 }
 
-/* Dashboard: balance formula explanation */
+/* Dashboard: balance formula explanation (sits on the dark emerald hero card) */
 .dash-balance-formula {
   font-size: 11px;
-  color: var(--ink-muted);
+  color: rgba(255,255,255,.65);
   margin: 6px 0 0;
   line-height: 1.5;
 }
-
-/* Dashboard savings split pill */
-.dash-split.savings { color: var(--gold, #F59E0B); }
 
 /* Dashboard Goals widget */
 .dash-goals-list {

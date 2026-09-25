@@ -54,14 +54,14 @@ function HealthGauge({ score, label, color }) {
   return (
     <div className="health-gauge">
       <svg width={140} height={140} viewBox="0 0 140 140">
-        <circle cx={70} cy={70} r={radius} fill="none" stroke="var(--surface-alt)" strokeWidth={12}/>
+        <circle cx={70} cy={70} r={radius} fill="none" stroke="rgba(255,255,255,.2)" strokeWidth={12}/>
         <circle cx={70} cy={70} r={radius} fill="none" stroke={color} strokeWidth={12}
           strokeDasharray={circ} strokeDashoffset={offset}
           strokeLinecap="round"
           style={{ transition: 'stroke-dashoffset 1s ease', transform: 'rotate(-90deg)', transformOrigin: '70px 70px' }}
         />
         <text x={70} y={65} textAnchor="middle" fontSize={28} fontWeight={700} fill={color} fontFamily="Fraunces,serif">{score}</text>
-        <text x={70} y={84} textAnchor="middle" fontSize={11} fill="var(--ink-muted)" fontFamily="Inter,sans-serif">/100</text>
+        <text x={70} y={84} textAnchor="middle" fontSize={11} fill="rgba(255,255,255,.6)" fontFamily="Inter,sans-serif">/100</text>
       </svg>
       <div className="health-label" style={{ color }}>{label}</div>
     </div>
